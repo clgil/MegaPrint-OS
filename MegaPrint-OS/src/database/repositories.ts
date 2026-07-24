@@ -4,9 +4,17 @@ import type {
   ServiceOrder, 
   InventoryPart, 
   Expense, 
+  Income,
   WorkshopConfig,
   OrderStatus,
-  AestheticState 
+  AestheticState,
+  WarrantyClaim,
+  WarrantyStatus,
+  MonthlyFinancialSummary,
+  DailyFinancialSummary,
+  PaymentMethod,
+  ExpenseCategory,
+  IncomeCategory
 } from '../types';
 
 // ==================== CLIENT REPOSITORY ====================
@@ -315,7 +323,7 @@ export const inventoryRepository = {
   },
 };
 
-// ==================== EXPENSE REPOSITORY ====================
+// ==================== EXPENSE REPOSITORY (FASE 2) ====================
 
 export const expenseRepository = {
   async getAll(): Promise<Expense[]> {
@@ -338,24 +346,395 @@ export const expenseRepository = {
     return result || [];
   },
 
+  async getByDateRange(startDate: string, endDate: string): Promise<Expense[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<Expense>(
+      'SELECT * FROM expenses WHERE date BETWEEN ? AND ? ORDER BY date DESC',
+      [startDate, endDate]
+    );
+    return result || [];
+  },
+
   async create(expense: Omit<Expense, 'id'>): Promise<number> {
     const db = await getDatabase();
     const result = await db.runAsync(
-      'INSERT INTO expenses (description, category, amount, date, notes) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO expenses (description, category, amount, date, payment_method, notes, receipt_image) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         expense.description,
         expense.category,
         expense.amount,
         expense.date,
-        expense.notes || null
+        expense.paymentMethod || null,
+        expense.notes || null,
+        expense.receiptImage || null
       ]
     );
     return result.lastInsertRowId;
   },
 
+  async update(id: number, expense: Partial<Expense>): Promise<void> {
+    const db = await getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (expense.description !== undefined) { fields.push('description = ?'); values.push(expense.description); }
+    if (expense.category !== undefined) { fields.push('category = ?'); values.push(expense.category); }
+    if (expense.amount !== undefined) { fields.push('amount = ?'); values.push(expense.amount); }
+    if (expense.paymentMethod !== undefined) { fields.push('payment_method = ?'); values.push(expense.paymentMethod); }
+    if (expense.notes !== undefined) { fields.push('notes = ?'); values.push(expense.notes); }
+    if (expense.receiptImage !== undefined) { fields.push('receipt_image = ?'); values.push(expense.receiptImage); }
+
+    if (fields.length > 0) {
+      values.push(id);
+      await db.runAsync(
+        `UPDATE expenses SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+  },
+
   async delete(id: number): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
+  },
+
+  async getTotalByMonth(year: number, month: number): Promise<number> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    
+    const result = await db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+    return result?.total || 0;
+  },
+
+  async getTotalByCategory(year: number, month: number): Promise<{ category: string; total: number }[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    
+    const result = await db.getAllAsync<{ category: string; total: number }>(
+      `SELECT category, SUM(amount) as total 
+       FROM expenses 
+       WHERE date BETWEEN ? AND ? 
+       GROUP BY category 
+       ORDER BY total DESC`,
+      [startDate, endDate]
+    );
+    return result || [];
+  },
+};
+
+// ==================== INCOME REPOSITORY (FASE 2) ====================
+
+export const incomeRepository = {
+  async getAll(): Promise<Income[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<Income>(
+      'SELECT * FROM incomes ORDER BY date DESC'
+    );
+    return result || [];
+  },
+
+  async getByMonth(year: number, month: number): Promise<Income[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    
+    const result = await db.getAllAsync<Income>(
+      'SELECT * FROM incomes WHERE date BETWEEN ? AND ? ORDER BY date DESC',
+      [startDate, endDate]
+    );
+    return result || [];
+  },
+
+  async getByDateRange(startDate: string, endDate: string): Promise<Income[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<Income>(
+      'SELECT * FROM incomes WHERE date BETWEEN ? AND ? ORDER BY date DESC',
+      [startDate, endDate]
+    );
+    return result || [];
+  },
+
+  async create(income: Omit<Income, 'id'>): Promise<number> {
+    const db = await getDatabase();
+    const result = await db.runAsync(
+      'INSERT INTO incomes (description, category, amount, date, order_id, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        income.description,
+        income.category,
+        income.amount,
+        income.date,
+        income.orderId || null,
+        income.paymentMethod || null,
+        income.notes || null
+      ]
+    );
+    return result.lastInsertRowId;
+  },
+
+  async update(id: number, income: Partial<Income>): Promise<void> {
+    const db = await getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (income.description !== undefined) { fields.push('description = ?'); values.push(income.description); }
+    if (income.category !== undefined) { fields.push('category = ?'); values.push(income.category); }
+    if (income.amount !== undefined) { fields.push('amount = ?'); values.push(income.amount); }
+    if (income.paymentMethod !== undefined) { fields.push('payment_method = ?'); values.push(income.paymentMethod); }
+    if (income.notes !== undefined) { fields.push('notes = ?'); values.push(income.notes); }
+
+    if (fields.length > 0) {
+      values.push(id);
+      await db.runAsync(
+        `UPDATE incomes SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+  },
+
+  async delete(id: number): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM incomes WHERE id = ?', [id]);
+  },
+
+  async getTotalByMonth(year: number, month: number): Promise<number> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    
+    const result = await db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(amount), 0) as total FROM incomes WHERE date BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+    return result?.total || 0;
+  },
+
+  async getTotalByCategory(year: number, month: number): Promise<{ category: string; total: number }[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    
+    const result = await db.getAllAsync<{ category: string; total: number }>(
+      `SELECT category, SUM(amount) as total 
+       FROM incomes 
+       WHERE date BETWEEN ? AND ? 
+       GROUP BY category 
+       ORDER BY total DESC`,
+      [startDate, endDate]
+    );
+    return result || [];
+  },
+};
+
+// ==================== WARRANTY CLAIMS REPOSITORY (FASE 2) ====================
+
+export const warrantyClaimRepository = {
+  async getAll(): Promise<WarrantyClaim[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<WarrantyClaim>(
+      'SELECT * FROM warranty_claims ORDER BY claim_date DESC'
+    );
+    return result || [];
+  },
+
+  async getByOrderId(orderId: number): Promise<WarrantyClaim[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<WarrantyClaim>(
+      'SELECT * FROM warranty_claims WHERE order_id = ? ORDER BY claim_date DESC',
+      [orderId]
+    );
+    return result || [];
+  },
+
+  async getByStatus(status: WarrantyStatus): Promise<WarrantyClaim[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync<WarrantyClaim>(
+      'SELECT * FROM warranty_claims WHERE status = ? ORDER BY claim_date DESC',
+      [status]
+    );
+    return result || [];
+  },
+
+  async getPendingClaims(): Promise<WarrantyClaim[]> {
+    return this.getByStatus('PENDIENTE');
+  },
+
+  async create(claim: Omit<WarrantyClaim, 'id'>): Promise<number> {
+    const db = await getDatabase();
+    const result = await db.runAsync(
+      'INSERT INTO warranty_claims (order_id, claim_date, description, status, cost_to_workshop) VALUES (?, ?, ?, ?, ?)',
+      [
+        claim.orderId,
+        claim.claimDate,
+        claim.description,
+        claim.status,
+        claim.costToWorkshop || 0
+      ]
+    );
+    return result.lastInsertRowId;
+  },
+
+  async update(id: number, claim: Partial<WarrantyClaim>): Promise<void> {
+    const db = await getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (claim.description !== undefined) { fields.push('description = ?'); values.push(claim.description); }
+    if (claim.resolution !== undefined) { fields.push('resolution = ?'); values.push(claim.resolution); }
+    if (claim.status !== undefined) { fields.push('status = ?'); values.push(claim.status); }
+    if (claim.costToWorkshop !== undefined) { fields.push('cost_to_workshop = ?'); values.push(claim.costToWorkshop); }
+    if (claim.resolvedAt !== undefined) { fields.push('resolved_at = ?'); values.push(claim.resolvedAt); }
+
+    if (fields.length > 0) {
+      values.push(id);
+      await db.runAsync(
+        `UPDATE warranty_claims SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+  },
+
+  async resolve(id: number, resolution: string, costToWorkshop: number = 0): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `UPDATE warranty_claims 
+       SET resolution = ?, status = 'RESUELTO', resolved_at = CURRENT_TIMESTAMP, cost_to_workshop = ? 
+       WHERE id = ?`,
+      [resolution, costToWorkshop, id]
+    );
+  },
+
+  async reject(id: number, resolution: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `UPDATE warranty_claims 
+       SET resolution = ?, status = 'RECHAZADO', resolved_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [resolution, id]
+    );
+  },
+
+  async delete(id: number): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM warranty_claims WHERE id = ?', [id]);
+  },
+};
+
+// ==================== FINANCIAL DASHBOARD REPOSITORY (FASE 2) ====================
+
+export const financialRepository = {
+  async getMonthlySummary(year: number, month: number): Promise<MonthlyFinancialSummary> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+
+    // Get total income
+    const incomeResult = await db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(amount), 0) as total FROM incomes WHERE date BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+
+    // Get total expenses
+    const expenseResult = await db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+
+    // Get service count
+    const serviceResult = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM service_orders WHERE delivered_at BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+
+    // Get total revenue from delivered orders
+    const revenueResult = await db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(total_price), 0) as total FROM service_orders WHERE delivered_at BETWEEN ? AND ?',
+      [startDate, endDate]
+    );
+
+    const totalIncome = (incomeResult?.total || 0) + (revenueResult?.total || 0);
+    const totalExpenses = expenseResult?.total || 0;
+    const netProfit = totalIncome - totalExpenses;
+    const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+    const serviceCount = serviceResult?.count || 0;
+    const averageTicket = serviceCount > 0 ? totalIncome / serviceCount : 0;
+
+    return {
+      month,
+      year,
+      totalIncome,
+      totalExpenses,
+      netProfit,
+      profitMargin,
+      serviceCount,
+      averageTicket,
+    };
+  },
+
+  async getDailySummaries(year: number, month: number): Promise<DailyFinancialSummary[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+
+    // This is a simplified version - in production you'd want to aggregate by day
+    const result = await db.getAllAsync<DailyFinancialSummary>(
+      `SELECT 
+         DATE(date) as date,
+         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expenses,
+         COUNT(*) as transactionCount
+       FROM (
+         SELECT date, amount, 'income' as type FROM incomes WHERE date BETWEEN ? AND ?
+         UNION ALL
+         SELECT date, amount, 'expense' as type FROM expenses WHERE date BETWEEN ? AND ?
+       )
+       GROUP BY DATE(date)
+       ORDER BY date`,
+      [startDate, endDate, startDate, endDate]
+    );
+
+    return result || [];
+  },
+
+  async compareMonths(currentYear: number, currentMonth: number, previousYear: number, previousMonth: number): Promise<{
+    current: MonthlyFinancialSummary;
+    previous: MonthlyFinancialSummary;
+    growthPercentage: number;
+  }> {
+    const current = await this.getMonthlySummary(currentYear, currentMonth);
+    const previous = await this.getMonthlySummary(previousYear, previousMonth);
+    
+    const growthPercentage = previous.netProfit > 0 
+      ? ((current.netProfit - previous.netProfit) / previous.netProfit) * 100 
+      : 0;
+
+    return { current, previous, growthPercentage };
+  },
+
+  async getTopServices(year: number, month: number, limit: number = 5): Promise<{ name: string; count: number; revenue: number }[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+
+    // Group by equipment brand (simplified - in production you might categorize services differently)
+    const result = await db.getAllAsync<{ name: string; count: number; revenue: number }>(
+      `SELECT 
+         equipment_brand as name,
+         COUNT(*) as count,
+         SUM(total_price) as revenue
+       FROM service_orders
+       WHERE delivered_at BETWEEN ? AND ?
+       GROUP BY equipment_brand
+       ORDER BY revenue DESC
+       LIMIT ?`,
+      [startDate, endDate, limit]
+    );
+
+    return result || [];
   },
 };
 

@@ -69,6 +69,7 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
       received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       delivered_at DATETIME,
+      warranty_until DATETIME,
       customer_signature TEXT,
       technician_signature TEXT,
       FOREIGN KEY (client_id) REFERENCES clients(id)
@@ -88,7 +89,22 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     );
   `);
 
-  // Create Expenses table
+  // FASE 2: Create Incomes table (separada de expenses para mejor tracking)
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS incomes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      description TEXT NOT NULL,
+      category TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      order_id INTEGER,
+      payment_method TEXT,
+      notes TEXT,
+      FOREIGN KEY (order_id) REFERENCES service_orders(id)
+    );
+  `);
+
+  // FASE 2: Enhanced Expenses table
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,7 +112,24 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
       category TEXT NOT NULL,
       amount REAL NOT NULL,
       date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      notes TEXT
+      payment_method TEXT,
+      notes TEXT,
+      receipt_image TEXT
+    );
+  `);
+
+  // FASE 2: Create Warranty Claims table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS warranty_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      claim_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      description TEXT NOT NULL,
+      resolution TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDIENTE',
+      resolved_at DATETIME,
+      cost_to_workshop REAL DEFAULT 0,
+      FOREIGN KEY (order_id) REFERENCES service_orders(id)
     );
   `);
 
@@ -110,7 +143,9 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
       phone TEXT,
       email TEXT,
       warranty_terms TEXT,
-      tax_id TEXT
+      warranty_days INTEGER DEFAULT 30,
+      tax_id TEXT,
+      currency_symbol TEXT DEFAULT '$'
     );
   `);
 
@@ -120,9 +155,24 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     CREATE INDEX IF NOT EXISTS idx_orders_client ON service_orders(client_id);
     CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory_parts(category);
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+    CREATE INDEX IF NOT EXISTS idx_incomes_date ON incomes(date);
+    CREATE INDEX IF NOT EXISTS idx_warranty_claims_status ON warranty_claims(status);
+    CREATE INDEX IF NOT EXISTS idx_orders_warranty ON service_orders(warranty_until);
   `);
 
-  console.log('Database initialized successfully');
+  // FASE 2: Insert default workshop config if not exists
+  const configCount = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM workshop_config'
+  );
+  
+  if (!configCount || configCount.count === 0) {
+    await database.runAsync(`
+      INSERT INTO workshop_config (workshop_name, warranty_terms, warranty_days, currency_symbol)
+      VALUES ('Mi Taller de Hardware', 'Garantía de 30 días por defectos de fabricación o instalación. La garantía no cubre mal uso, golpes, líquidos o manipulaciones por terceros.', 30, '$')
+    `);
+  }
+
+  console.log('Database initialized successfully with Phase 2 tables');
 };
 
 // Helper function to generate order number (MPL-1001 format)

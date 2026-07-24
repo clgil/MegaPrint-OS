@@ -16,12 +16,14 @@ interface OrdersListProps {
   orders: ServiceOrder[];
   onOrderPress: (order: ServiceOrder) => void;
   onNewOrder?: () => void;
+  onDashboard?: () => void;
 }
 
 export const OrdersList: React.FC<OrdersListProps> = ({ 
   orders, 
   onOrderPress,
-  onNewOrder 
+  onNewOrder,
+  onDashboard 
 }) => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
@@ -69,11 +71,19 @@ export const OrdersList: React.FC<OrdersListProps> = ({
       <View style={styles.header}>
         <Text style={styles.title}>Órdenes de Servicio</Text>
         
-        {onNewOrder && (
-          <TouchableOpacity style={styles.newOrderButton} onPress={onNewOrder}>
-            <Text style={styles.newOrderButtonText}>+ Nueva</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerActions}>
+          {onDashboard && (
+            <TouchableOpacity style={styles.dashboardButton} onPress={onDashboard}>
+              <Text style={styles.dashboardButtonText}>📊 Dashboard</Text>
+            </TouchableOpacity>
+          )}
+          
+          {onNewOrder && (
+            <TouchableOpacity style={styles.newOrderButton} onPress={onNewOrder}>
+              <Text style={styles.newOrderButtonText}>+ Nueva</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Quick filters */}
@@ -134,6 +144,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dashboardButton: {
+    backgroundColor: '#9b59b6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  dashboardButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   newOrderButton: {
     backgroundColor: '#3498db',
