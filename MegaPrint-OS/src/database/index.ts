@@ -133,6 +133,24 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     );
   `);
 
+  // FASE 2: Create Workshop Configuration table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS workshop_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workshop_name TEXT NOT NULL,
+      logo_image TEXT,
+      address TEXT,
+      phone TEXT,
+      email TEXT,
+      tax_id TEXT,
+      warranty_terms TEXT,
+      warranty_days INTEGER DEFAULT 30,
+      currency_symbol TEXT DEFAULT '$',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   // FASE 3: Create License & Activation table
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS app_license (
