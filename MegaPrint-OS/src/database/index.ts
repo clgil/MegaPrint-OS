@@ -177,6 +177,52 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     CREATE INDEX IF NOT EXISTS idx_features_enabled ON app_features(is_enabled);
   `);
 
+  // FASE 4: Create Reports cache table for faster report generation
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS reports_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_type TEXT NOT NULL,
+      period_start TEXT NOT NULL,
+      period_end TEXT NOT NULL,
+      data TEXT NOT NULL, -- JSON cached data
+      generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME
+    );
+  `);
+
+  // FASE 4: Create Activity Log table for audit trail
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_action TEXT NOT NULL,
+      entity_type TEXT, -- 'ORDER', 'CLIENT', 'INVENTORY', etc.
+      entity_id INTEGER,
+      old_value TEXT, -- JSON of previous state
+      new_value TEXT, -- JSON of new state
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // FASE 4: Create Backup metadata table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS backup_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      backup_path TEXT NOT NULL,
+      backup_size INTEGER,
+      tables_included TEXT, -- JSON array
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_encrypted INTEGER DEFAULT 0
+    );
+  `);
+
+  // Add new indexes for Phase 4
+  await database.execAsync(`
+    CREATE INDEX IF NOT EXISTS idx_reports_cache_type ON reports_cache(report_type);
+    CREATE INDEX IF NOT EXISTS idx_reports_cache_period ON reports_cache(period_start, period_end);
+    CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_log_date ON activity_log(created_at);
+  `);
+
   // FASE 2: Insert default workshop config if not exists
   const configCount = await database.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM workshop_config'

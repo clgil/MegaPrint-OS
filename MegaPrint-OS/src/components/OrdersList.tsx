@@ -18,13 +18,15 @@ interface OrdersListProps {
   onNewOrder?: () => void;
   onDashboard?: () => void;
   onSettings?: () => void;
+  onReports?: () => void;
 }
 
 export const OrdersList: React.FC<OrdersListProps> = ({ 
   orders, 
   onOrderPress,
   onNewOrder,
-  onDashboard 
+  onDashboard,
+  onReports 
 }) => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
@@ -73,15 +75,20 @@ export const OrdersList: React.FC<OrdersListProps> = ({
         <Text style={styles.title}>Órdenes de Servicio</Text>
         
         <View style={styles.headerActions}>
+          {onReports && (
+            <TouchableOpacity style={styles.reportsButton} onPress={onReports}>
+              <Text style={styles.reportsButtonText}>📊 Reportes</Text>
+            </TouchableOpacity>
+          )}
           {onDashboard && (
             <TouchableOpacity style={styles.dashboardButton} onPress={onDashboard}>
-              <Text style={styles.dashboardButtonText}>📊 Dashboard</Text>
+              <Text style={styles.dashboardButtonText}>📈 Dashboard</Text>
             </TouchableOpacity>
           )}
           
           {onSettings && (
             <TouchableOpacity style={styles.settingsButton} onPress={onSettings}>
-              <Text style={styles.settingsButtonText}>⚙️ Ajustes</Text>
+              <Text style={styles.settingsButtonText}>⚙️</Text>
             </TouchableOpacity>
           )}
           {onNewOrder && (
@@ -155,6 +162,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  reportsButton: {
+    backgroundColor: '#27ae60',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  reportsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   dashboardButton: {
     backgroundColor: '#9b59b6',
     paddingHorizontal: 16,
@@ -173,53 +191,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   newOrderButtonText: {
-  settingsButton: {
-    backgroundColor: '#95a5a6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  settingsButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
-  },
-    color: '#fff',
-  settingsButton: {
-    backgroundColor: '#95a5a6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  settingsButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-    fontWeight: 'bold',
-  settingsButton: {
-    backgroundColor: '#95a5a6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  settingsButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-    fontSize: 14,
-  settingsButton: {
-    backgroundColor: '#95a5a6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  settingsButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
   },
   settingsButton: {
     backgroundColor: '#95a5a6',
