@@ -78,40 +78,6 @@ export const OrdersList: React.FC<OrdersListProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Órdenes de Servicio</Text>
-        
-        <View style={styles.headerActions}>
-          {onInventory && (
-            <TouchableOpacity style={styles.inventoryButton} onPress={onInventory}>
-              <Text style={styles.inventoryButtonText}>📦 Inventario</Text>
-            </TouchableOpacity>
-          )}
-          {onTransactions && (
-            <TouchableOpacity style={styles.transactionsButton} onPress={onTransactions}>
-              <Text style={styles.transactionsButtonText}>💰 Transacciones</Text>
-            </TouchableOpacity>
-          )}
-          {onReports && (
-            <TouchableOpacity style={styles.reportsButton} onPress={onReports}>
-              <Text style={styles.reportsButtonText}>📊 Reportes</Text>
-            </TouchableOpacity>
-          )}
-          {onDashboard && (
-            <TouchableOpacity style={styles.dashboardButton} onPress={onDashboard}>
-              <Text style={styles.dashboardButtonText}>📈 Dashboard</Text>
-            </TouchableOpacity>
-          )}
-          
-          {onSettings && (
-            <TouchableOpacity style={styles.settingsButton} onPress={onSettings}>
-              <Text style={styles.settingsButtonText}>⚙️</Text>
-            </TouchableOpacity>
-          )}
-          {onNewOrder && (
-            <TouchableOpacity style={styles.newOrderButton} onPress={onNewOrder}>
-              <Text style={styles.newOrderButtonText}>+ Nueva</Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
       {/* Quick filters */}
@@ -160,9 +126,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f6fa',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
