@@ -170,10 +170,10 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ orderId, o
       {/* Equipment Info */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Equipo</Text>
-        <Text style={styles.infoText}><strong>Marca:</strong> {order.equipmentBrand}</Text>
-        <Text style={styles.infoText}><strong>Modelo:</strong> {order.equipmentModel}</Text>
+        <Text style={styles.infoText}><Text style={{ fontWeight: 'bold' }}>Marca:</Text> {order.equipmentBrand}</Text>
+        <Text style={styles.infoText}><Text style={{ fontWeight: 'bold' }}>Modelo:</Text> {order.equipmentModel}</Text>
         {order.equipmentSerialNumber && (
-          <Text style={styles.infoText}><strong>S/N:</strong> {order.equipmentSerialNumber}</Text>
+          <Text style={styles.infoText}><Text style={{ fontWeight: 'bold' }}>S/N:</Text> {order.equipmentSerialNumber}</Text>
         )}
       </View>
 
