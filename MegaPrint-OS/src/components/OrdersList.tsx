@@ -17,6 +17,7 @@ interface OrdersListProps {
   onOrderPress: (order: ServiceOrder) => void;
   onNewOrder?: () => void;
   onDashboard?: () => void;
+  onSettings?: () => void;
 }
 
 export const OrdersList: React.FC<OrdersListProps> = ({ 
@@ -78,6 +79,11 @@ export const OrdersList: React.FC<OrdersListProps> = ({
             </TouchableOpacity>
           )}
           
+          {onSettings && (
+            <TouchableOpacity style={styles.settingsButton} onPress={onSettings}>
+              <Text style={styles.settingsButtonText}>⚙️ Ajustes</Text>
+            </TouchableOpacity>
+          )}
           {onNewOrder && (
             <TouchableOpacity style={styles.newOrderButton} onPress={onNewOrder}>
               <Text style={styles.newOrderButtonText}>+ Nueva</Text>
@@ -167,6 +173,61 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   newOrderButtonText: {
+  settingsButton: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+    color: '#fff',
+  settingsButton: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+    fontWeight: 'bold',
+  settingsButton: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+    fontSize: 14,
+  settingsButton: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  },
+  settingsButton: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,

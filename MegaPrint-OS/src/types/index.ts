@@ -158,6 +158,43 @@ export interface WorkshopConfig {
   currencySymbol?: string; // FASE 2: Símbolo de moneda ($, S/, etc.)
 }
 
+// FASE 3: Tipos para módulo comercial y licencias
+export interface LicenseInfo {
+  licenseKey: string;
+  isActive: boolean;
+  activatedAt?: string;
+  expiresAt?: string;
+  licenseType: LicenseType;
+  maxDevices: number;
+  features: string[];
+  workshopName?: string;
+  email?: string;
+}
+
+export type LicenseType = 'TRIAL' | 'BASIC' | 'PRO' | 'ENTERPRISE';
+
+export interface ActivationRequest {
+  licenseKey: string;
+  deviceId: string;
+  workshopName: string;
+  email: string;
+}
+
+export interface ActivationResponse {
+  success: boolean;
+  message: string;
+  licenseInfo?: LicenseInfo;
+  error?: string;
+}
+
+export interface AppFeature {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  requiresLicense: LicenseType | null;
+}
+
 // FASE 2: Tipos para dashboard
 export interface DashboardMetrics {
   currentMonth: MonthlyFinancialSummary;
