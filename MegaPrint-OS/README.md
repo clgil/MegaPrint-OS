@@ -6,13 +6,26 @@
 
 ## ✨ Características Principales
 
-### Módulo de Órdenes de Servicio (Core)
+### Fase 1: Módulo de Órdenes de Servicio (Core) ✅ COMPLETADO
 - ✅ Creación de órdenes con numeración automática (Ej: MPL-1001)
 - ✅ Estados personalizables: Recibido, En Diagnóstico, Esperando Pieza, Reparado, Entregado, Sin Solución
 - ✅ Registro de datos del cliente y equipo (marca, modelo, S/N)
 - ✅ Checklist de estado estético del equipo
 - ✅ Firma digital en pantalla
 - ✅ Generación y exportación de PDFs profesionales
+
+### Fase 2: Control Financiero y Dashboard ✅ IMPLEMENTADO
+- ✅ **Registro de Ingresos**: Tracking separado de ingresos por servicios y ventas
+- ✅ **Registro de Gastos**: Categorización de gastos operativos (insumos, herramientas, servicios, etc.)
+- ✅ **Dashboard Financiero**: 
+  - Resumen mensual con ingresos, gastos y ganancia neta
+  - Comparación mes actual vs mes anterior
+  - Cálculo de margen de ganancia y ticket promedio
+  - Alertas de stock bajo y garantías pendientes
+- ✅ **Gestión de Garantías**: 
+  - Registro de reclamos de garantía
+  - Seguimiento de estado (Pendiente, En Proceso, Resuelto, Rechazado)
+  - Cálculo de costos asumidos por el taller
 
 ### Gestión de Clientes
 - ✅ Directorio local con CRUD completo

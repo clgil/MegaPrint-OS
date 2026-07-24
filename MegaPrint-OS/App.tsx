@@ -3,9 +3,10 @@ import { View, StyleSheet, Alert, StatusBar } from 'react-native';
 import { OrdersList } from './src/components/OrdersList';
 import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
+import { DashboardScreen } from './src/screens/DashboardScreen';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
-type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL';
+type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LIST');
@@ -43,6 +44,10 @@ export default function App() {
     setSelectedOrderId(null);
     setCurrentScreen('LIST');
     loadOrders(); // Refresh the list
+  };
+
+  const handleDashboardPress = () => {
+    setCurrentScreen('DASHBOARD');
   };
 
   const handleCreateOrder = async (orderData: any) => {
@@ -85,6 +90,7 @@ export default function App() {
           orders={orders}
           onOrderPress={handleOrderPress}
           onNewOrder={handleNewOrderPress}
+          onDashboard={handleDashboardPress}
         />
       )}
       
@@ -98,6 +104,12 @@ export default function App() {
       {currentScreen === 'DETAIL' && selectedOrderId !== null && (
         <OrderDetailScreen
           orderId={selectedOrderId}
+          onBack={handleBackToList}
+        />
+      )}
+
+      {currentScreen === 'DASHBOARD' && (
+        <DashboardScreen
           onBack={handleBackToList}
         />
       )}
