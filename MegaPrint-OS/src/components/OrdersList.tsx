@@ -19,6 +19,8 @@ interface OrdersListProps {
   onDashboard?: () => void;
   onSettings?: () => void;
   onReports?: () => void;
+  onTransactions?: () => void;
+  onInventory?: () => void;
 }
 
 export const OrdersList: React.FC<OrdersListProps> = ({ 
@@ -27,7 +29,9 @@ export const OrdersList: React.FC<OrdersListProps> = ({
   onNewOrder,
   onDashboard,
   onSettings,
-  onReports 
+  onReports,
+  onTransactions,
+  onInventory 
 }) => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
@@ -76,6 +80,16 @@ export const OrdersList: React.FC<OrdersListProps> = ({
         <Text style={styles.title}>Órdenes de Servicio</Text>
         
         <View style={styles.headerActions}>
+          {onInventory && (
+            <TouchableOpacity style={styles.inventoryButton} onPress={onInventory}>
+              <Text style={styles.inventoryButtonText}>📦 Inventario</Text>
+            </TouchableOpacity>
+          )}
+          {onTransactions && (
+            <TouchableOpacity style={styles.transactionsButton} onPress={onTransactions}>
+              <Text style={styles.transactionsButtonText}>💰 Transacciones</Text>
+            </TouchableOpacity>
+          )}
           {onReports && (
             <TouchableOpacity style={styles.reportsButton} onPress={onReports}>
               <Text style={styles.reportsButtonText}>📊 Reportes</Text>
@@ -203,6 +217,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   settingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  inventoryButton: {
+    backgroundColor: '#e67e22',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  inventoryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  transactionsButton: {
+    backgroundColor: '#16a085',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  transactionsButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,

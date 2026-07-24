@@ -94,13 +94,21 @@ MegaPrint-OS/
 │   │   ├── NewOrderForm.tsx
 │   │   └── SignaturePad.tsx
 │   ├── screens/          # Pantallas principales
-│   │   └── OrderDetailScreen.tsx
+│   │   ├── OrderDetailScreen.tsx
+│   │   ├── DashboardScreen.tsx
+│   │   ├── SettingsScreen.tsx
+│   │   ├── ReportsScreen.tsx
+│   │   ├── FinancialTransactionsScreen.tsx
+│   │   └── InventoryScreen.tsx
 │   ├── database/         # Capa de datos
 │   │   ├── index.ts      # Configuración SQLite
 │   │   └── repositories.ts # Repositorios CRUD
 │   ├── types/            # Tipos TypeScript
+│   └── utils/            # Utilidades
 │   │   └── index.ts
 │   └── utils/            # Utilidades
+│       ├── pdfGenerator.ts # Generación de PDFs
+│       └── reports.ts    # Utilidades de reportes
 │       └── pdfGenerator.ts # Generación de PDFs
 ├── assets/               # Recursos gráficos
 ├── App.tsx               # Punto de entrada principal
