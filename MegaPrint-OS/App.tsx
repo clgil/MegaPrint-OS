@@ -5,9 +5,10 @@ import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { ReportsScreen } from './src/screens/ReportsScreen';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
-type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS';
+type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS' | 'REPORTS';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LIST');
@@ -55,6 +56,10 @@ export default function App() {
     setCurrentScreen('SETTINGS');
   };
 
+  const handleReportsPress = () => {
+    setCurrentScreen('REPORTS');
+  };
+
   const handleCreateOrder = async (orderData: any) => {
     try {
       // First, create or find the client
@@ -96,6 +101,7 @@ export default function App() {
           onOrderPress={handleOrderPress}
           onNewOrder={handleNewOrderPress}
           onDashboard={handleDashboardPress}
+          onReports={handleReportsPress}
           onSettings={handleSettingsPress}
         />
       )}
@@ -122,6 +128,10 @@ export default function App() {
 
       {currentScreen === 'SETTINGS' && (
         <SettingsScreen />
+      )}
+
+      {currentScreen === 'REPORTS' && (
+        <ReportsScreen onBack={handleBackToList} />
       )}
     </View>
   );

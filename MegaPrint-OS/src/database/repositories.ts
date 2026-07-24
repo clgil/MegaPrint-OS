@@ -225,11 +225,11 @@ export const serviceOrderRepository = {
     );
   },
 
-  private mapResults(results: any[]): ServiceOrder[] {
+  mapResults(results: any[]): ServiceOrder[] {
     return (results || []).map(r => this.mapResult(r));
   },
 
-  private mapResult(result: any): ServiceOrder {
+  mapResult(result: any): ServiceOrder {
     return {
       ...result,
       aestheticState: {
@@ -1008,5 +1008,393 @@ export const licenseRepository = {
       'UPDATE app_license SET expires_at = ? WHERE is_active = 1',
       [newExpiry.toISOString().split('T')[0]]
     );
+  },
+};
+
+// ==================== FASE 4: REPORTS REPOSITORY ====================
+
+export const reportsRepository = {
+  // Generate Financial Report with daily breakdown
+  async generateFinancialReport(
+    month: number,
+    year: number
+  ): Promise<import('../types').FinancialReport> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+
+    // Get total income
+    const incomeResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total 
+       FROM incomes 
+       WHERE date BETWEEN ? AND ?`,
+      [startDate, endDate]
+    );
+
+    // Get total expenses
+    const expenseResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total 
+       FROM expenses 
+       WHERE date BETWEEN ? AND ?`,
+      [startDate, endDate]
+    );
+
+    // Get transaction count
+    const txCount = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count 
+       FROM (
+         SELECT id FROM incomes WHERE date BETWEEN ? AND ?
+         UNION ALL
+         SELECT id FROM expenses WHERE date BETWEEN ? AND ?
+       )`,
+      [startDate, endDate, startDate, endDate]
+    );
+
+    // Get top category by income
+    const topCategory = await db.getFirstAsync<{ category: string }>(
+      `SELECT category, SUM(amount) as total 
+       FROM incomes 
+       WHERE date BETWEEN ? AND ? 
+       GROUP BY category 
+       ORDER BY total DESC 
+       LIMIT 1`,
+      [startDate, endDate]
+    );
+
+    // Get daily breakdown
+    const dailyBreakdown: import('../types').DailyFinancialSummary[] = [];
+    for (let day = 1; day <= lastDay; day++) {
+      const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      const dayIncome = await db.getFirstAsync<{ total: number }>(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM incomes WHERE date(date) = date(?)`,
+        [dayStr]
+      );
+      
+      const dayExpense = await db.getFirstAsync<{ total: number }>(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date(date) = date(?)`,
+        [dayStr]
+      );
+      
+      const dayTxCount = await db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) as count 
+         FROM (
+           SELECT id FROM incomes WHERE date(date) = date(?)
+           UNION ALL
+           SELECT id FROM expenses WHERE date(date) = date(?)
+         )`,
+        [dayStr, dayStr]
+      );
+
+      const income = dayIncome?.total || 0;
+      const expenses = dayExpense?.total || 0;
+      
+      dailyBreakdown.push({
+        date: dayStr,
+        income,
+        expenses,
+        netProfit: income - expenses,
+        transactionCount: dayTxCount?.count || 0,
+      });
+    }
+
+    const totalIncome = incomeResult?.total || 0;
+    const totalExpenses = expenseResult?.total || 0;
+    const netProfit = totalIncome - totalExpenses;
+    const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+
+    return {
+      month,
+      year,
+      totalIncome,
+      totalExpenses,
+      netProfit,
+      profitMargin: Math.round(profitMargin * 100) / 100,
+      transactionsCount: txCount?.count || 0,
+      topCategory: topCategory?.category,
+      dailyBreakdown,
+    };
+  },
+
+  // Generate Inventory Report
+  async generateInventoryReport(): Promise<import('../types').InventoryReport> {
+    const db = await getDatabase();
+    
+    const allItems = await db.getAllAsync<import('../types').InventoryPart>(
+      'SELECT * FROM inventory_parts ORDER BY name ASC'
+    );
+
+    const items = allItems || [];
+    const totalItems = items.length;
+    const lowStockItems = items.filter(i => i.stockQuantity <= i.minStockLevel && i.stockQuantity > 0).length;
+    const outOfStockItems = items.filter(i => i.stockQuantity === 0).length;
+    const totalValue = items.reduce((sum, item) => sum + (item.costPrice * item.stockQuantity), 0);
+
+    // Group by categories
+    const categoriesMap = new Map<string, { count: number; value: number }>();
+    items.forEach(item => {
+      const existing = categoriesMap.get(item.category) || { count: 0, value: 0 };
+      categoriesMap.set(item.category, {
+        count: existing.count + 1,
+        value: existing.value + (item.costPrice * item.stockQuantity),
+      });
+    });
+
+    const categories = Array.from(categoriesMap.entries()).map(([category, data]) => ({
+      category,
+      count: data.count,
+      value: Math.round(data.value * 100) / 100,
+    }));
+
+    return {
+      totalItems,
+      lowStockItems,
+      outOfStockItems,
+      totalValue: Math.round(totalValue * 100) / 100,
+      categories,
+      items,
+    };
+  },
+
+  // Generate Activity Report
+  async generateActivityReport(
+    startDate: string,
+    endDate: string
+  ): Promise<import('../types').ActivityReport> {
+    const db = await getDatabase();
+
+    const totalOrders = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM service_orders 
+       WHERE date(received_at) BETWEEN date(?) AND date(?)`,
+      [startDate, endDate]
+    );
+
+    const completedOrders = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM service_orders 
+       WHERE status IN ('ENTREGADO', 'SIN_SOLUCION') 
+       AND date(delivered_at) BETWEEN date(?) AND date(?)`,
+      [startDate, endDate]
+    );
+
+    // Average repair time in days
+    const avgRepairTime = await db.getFirstAsync<{ avg_days: number }>(
+      `SELECT AVG(julianday(delivered_at) - julianday(received_at)) as avg_days 
+       FROM service_orders 
+       WHERE status IN ('ENTREGADO', 'SIN_SOLUCION') 
+       AND delivered_at IS NOT NULL
+       AND date(received_at) BETWEEN date(?) AND date(?)`,
+      [startDate, endDate]
+    );
+
+    // Orders by status
+    const ordersByStatusRows = await db.getAllAsync<{ status: string; count: number }>(
+      `SELECT status, COUNT(*) as count 
+       FROM service_orders 
+       WHERE date(received_at) BETWEEN date(?) AND date(?)
+       GROUP BY status`,
+      [startDate, endDate]
+    );
+
+    // Orders by brand
+    const ordersByBrandRows = await db.getAllAsync<{ brand: string; count: number }>(
+      `SELECT equipment_brand as brand, COUNT(*) as count 
+       FROM service_orders 
+       WHERE date(received_at) BETWEEN date(?) AND date(?)
+       GROUP BY equipment_brand
+       ORDER BY count DESC
+       LIMIT 10`,
+      [startDate, endDate]
+    );
+
+    // Top issues
+    const topIssuesRows = await db.getAllAsync<{ issue: string; count: number }>(
+      `SELECT reported_issue as issue, COUNT(*) as count 
+       FROM service_orders 
+       WHERE date(received_at) BETWEEN date(?) AND date(?)
+       GROUP BY reported_issue
+       ORDER BY count DESC
+       LIMIT 10`,
+      [startDate, endDate]
+    );
+
+    const ordersByStatus: Record<string, number> = {};
+    ordersByStatusRows?.forEach(row => {
+      ordersByStatus[row.status] = row.count;
+    });
+
+    const ordersByBrand: Record<string, number> = {};
+    ordersByBrandRows?.forEach(row => {
+      ordersByBrand[row.brand] = row.count;
+    });
+
+    return {
+      startDate,
+      endDate,
+      totalOrders: totalOrders?.count || 0,
+      completedOrders: completedOrders?.count || 0,
+      avgRepairTime: Math.round((avgRepairTime?.avg_days || 0) * 10) / 10,
+      ordersByStatus,
+      ordersByBrand,
+      topIssues: topIssuesRows?.map(r => ({ issue: r.issue, count: r.count })) || [],
+    };
+  },
+
+  // Cache report results for faster subsequent loads
+  async cacheReport(
+    reportType: string,
+    periodStart: string,
+    periodEnd: string,
+    data: any,
+    ttlHours: number = 24
+  ): Promise<void> {
+    const db = await getDatabase();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + ttlHours);
+
+    await db.runAsync(
+      `INSERT OR REPLACE INTO reports_cache (report_type, period_start, period_end, data, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [reportType, periodStart, periodEnd, JSON.stringify(data), expiresAt.toISOString()]
+    );
+  },
+
+  // Get cached report if not expired
+  async getCachedReport(
+    reportType: string,
+    periodStart: string,
+    periodEnd: string
+  ): Promise<any | null> {
+    const db = await getDatabase();
+    const result = await db.getFirstAsync<{ data: string }>(
+      `SELECT data FROM reports_cache 
+       WHERE report_type = ? 
+       AND period_start = ? 
+       AND period_end = ? 
+       AND (expires_at IS NULL OR expires_at > datetime('now'))`,
+      [reportType, periodStart, periodEnd]
+    );
+
+    if (result?.data) {
+      return JSON.parse(result.data);
+    }
+    return null;
+  },
+
+  // Clear expired cache entries
+  async clearExpiredCache(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `DELETE FROM reports_cache WHERE expires_at IS NOT NULL AND expires_at < datetime('now')`
+    );
+  },
+};
+
+// ==================== FASE 4: ACTIVITY LOG REPOSITORY ====================
+
+export const activityLogRepository = {
+  // Log an action
+  async log(
+    userAction: string,
+    entityType?: string,
+    entityId?: number,
+    oldValue?: any,
+    newValue?: any
+  ): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT INTO activity_log (user_action, entity_type, entity_id, old_value, new_value)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        userAction,
+        entityType || null,
+        entityId || null,
+        oldValue ? JSON.stringify(oldValue) : null,
+        newValue ? JSON.stringify(newValue) : null,
+      ]
+    );
+  },
+
+  // Get activity log for an entity
+  async getByEntity(
+    entityType: string,
+    entityId: number,
+    limit: number = 50
+  ): Promise<any[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync(
+      `SELECT * FROM activity_log 
+       WHERE entity_type = ? AND entity_id = ? 
+       ORDER BY created_at DESC 
+       LIMIT ?`,
+      [entityType, entityId, limit]
+    );
+    return result?.map(row => ({
+      ...row,
+      old_value: row.old_value ? JSON.parse(row.old_value) : null,
+      new_value: row.new_value ? JSON.parse(row.new_value) : null,
+    })) || [];
+  },
+
+  // Get recent activity log
+  async getRecent(limit: number = 100): Promise<any[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync(
+      `SELECT * FROM activity_log 
+       ORDER BY created_at DESC 
+       LIMIT ?`,
+      [limit]
+    );
+    return result?.map(row => ({
+      ...row,
+      old_value: row.old_value ? JSON.parse(row.old_value) : null,
+      new_value: row.new_value ? JSON.parse(row.new_value) : null,
+    })) || [];
+  },
+
+  // Clear old logs (older than specified days)
+  async clearOlderThan(days: number): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `DELETE FROM activity_log WHERE created_at < datetime('now', '-' || ? || ' days')`,
+      [days]
+    );
+  },
+};
+
+// ==================== FASE 4: BACKUP REPOSITORY ====================
+
+export const backupRepository = {
+  // Get list of backup metadata
+  async getBackupHistory(): Promise<any[]> {
+    const db = await getDatabase();
+    const result = await db.getAllAsync(
+      `SELECT * FROM backup_metadata ORDER BY created_at DESC`
+    );
+    return result || [];
+  },
+
+  // Register a new backup
+  async registerBackup(
+    backupPath: string,
+    backupSize: number,
+    tablesIncluded: string[],
+    isEncrypted: boolean = false
+  ): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT INTO backup_metadata (backup_path, backup_size, tables_included, is_encrypted)
+       VALUES (?, ?, ?, ?)`,
+      [backupPath, backupSize, JSON.stringify(tablesIncluded), isEncrypted ? 1 : 0]
+    );
+  },
+
+  // Get latest backup info
+  async getLatestBackup(): Promise<any | null> {
+    const db = await getDatabase();
+    const result = await db.getFirstAsync(
+      `SELECT * FROM backup_metadata ORDER BY created_at DESC LIMIT 1`
+    );
+    return result || null;
   },
 };

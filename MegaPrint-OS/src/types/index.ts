@@ -205,3 +205,49 @@ export interface DashboardMetrics {
   pendingWarrantyClaims: WarrantyClaim[];
   recentTransactions: (Income | Expense)[];
 }
+
+// FASE 4: Tipos para reportes y utilidades
+export interface FinancialReport {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netProfit: number;
+  profitMargin: number;
+  transactionsCount: number;
+  topCategory?: string;
+  dailyBreakdown: DailyFinancialSummary[];
+}
+
+export interface InventoryReport {
+  totalItems: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  totalValue: number;
+  categories: { category: string; count: number; value: number }[];
+  items: InventoryPart[];
+}
+
+export interface ActivityReport {
+  startDate: string;
+  endDate: string;
+  totalOrders: number;
+  completedOrders: number;
+  avgRepairTime: number; // en días
+  ordersByStatus: Record<string, number>;
+  ordersByBrand: Record<string, number>;
+  topIssues: { issue: string; count: number }[];
+}
+
+export type SortOption = 'DATE_DESC' | 'DATE_ASC' | 'AMOUNT_DESC' | 'AMOUNT_ASC';
+export type ReportPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR' | 'CUSTOM';
+
+export interface ReportFilters {
+  period: ReportPeriod;
+  startDate?: string;
+  endDate?: string;
+  categories?: string[];
+  status?: OrderStatus[];
+  minAmount?: number;
+  maxAmount?: number;
+}
