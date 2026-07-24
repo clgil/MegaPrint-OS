@@ -26,6 +26,7 @@ export const OrdersList: React.FC<OrdersListProps> = ({
   onOrderPress,
   onNewOrder,
   onDashboard,
+  onSettings,
   onReports 
 }) => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
