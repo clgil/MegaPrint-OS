@@ -4,7 +4,7 @@ import { OrdersList } from './src/components/OrdersList';
 import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
-import { SettingsScreen } from './src/screens/SettingsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
