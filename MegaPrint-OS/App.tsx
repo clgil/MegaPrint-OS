@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, StatusBar } from 'react-native';
+import { View, StyleSheet, Alert, StatusBar, SafeAreaView } from 'react-native';
 import { OrdersList } from './src/components/OrdersList';
 import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
@@ -8,6 +8,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import FinancialTransactionsScreen from './src/screens/FinancialTransactionsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import BottomNavBar from './src/components/BottomNavBar';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
 type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS' | 'REPORTS' | 'TRANSACTIONS' | 'INVENTORY';
@@ -102,58 +103,70 @@ export default function App() {
     setCurrentScreen('LIST');
   };
 
+  const handleNavigate = (tab: string) => {
+    setCurrentScreen(tab as Screen);
+  };
+
+  const showBottomNav = ['LIST', 'DASHBOARD', 'REPORTS', 'SETTINGS', 'TRANSACTIONS', 'INVENTORY'].includes(currentScreen);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f6fa" />
-      {currentScreen === 'LIST' && (
-        <OrdersList
-          orders={orders}
-          onOrderPress={handleOrderPress}
-          onNewOrder={handleNewOrderPress}
-          onDashboard={handleDashboardPress}
-          onReports={handleReportsPress}
-          onTransactions={handleTransactionsPress}
-          onInventory={handleInventoryPress}
-          onSettings={handleSettingsPress}
-        />
-      )}
+      <View style={styles.contentContainer}>
+        {currentScreen === 'LIST' && (
+          <OrdersList
+            orders={orders}
+            onOrderPress={handleOrderPress}
+            onNewOrder={handleNewOrderPress}
+            onDashboard={handleDashboardPress}
+            onReports={handleReportsPress}
+            onTransactions={handleTransactionsPress}
+            onInventory={handleInventoryPress}
+            onSettings={handleSettingsPress}
+          />
+        )}
+        
+        {currentScreen === 'NEW_ORDER' && (
+          <NewOrderForm
+            onSubmit={handleCreateOrder}
+            onCancel={handleCancelNewOrder}
+          />
+        )}
+        
+        {currentScreen === 'DETAIL' && selectedOrderId !== null && (
+          <OrderDetailScreen
+            orderId={selectedOrderId}
+            onBack={handleBackToList}
+          />
+        )}
+
+        {currentScreen === 'DASHBOARD' && (
+          <DashboardScreen
+            onBack={handleBackToList}
+          />
+        )}
+
+        {currentScreen === 'SETTINGS' && (
+          <SettingsScreen />
+        )}
+
+        {currentScreen === 'REPORTS' && (
+          <ReportsScreen onBack={handleBackToList} />
+        )}
+
+        {currentScreen === 'TRANSACTIONS' && (
+          <FinancialTransactionsScreen onBack={handleBackToList} />
+        )}
+
+        {currentScreen === 'INVENTORY' && (
+          <InventoryScreen onBack={handleBackToList} />
+        )}
+      </View>
       
-      {currentScreen === 'NEW_ORDER' && (
-        <NewOrderForm
-          onSubmit={handleCreateOrder}
-          onCancel={handleCancelNewOrder}
-        />
+      {showBottomNav && (
+        <BottomNavBar activeTab={currentScreen} onNavigate={handleNavigate} />
       )}
-      
-      {currentScreen === 'DETAIL' && selectedOrderId !== null && (
-        <OrderDetailScreen
-          orderId={selectedOrderId}
-          onBack={handleBackToList}
-        />
-      )}
-
-      {currentScreen === 'DASHBOARD' && (
-        <DashboardScreen
-          onBack={handleBackToList}
-        />
-      )}
-
-      {currentScreen === 'SETTINGS' && (
-        <SettingsScreen />
-      )}
-
-      {currentScreen === 'REPORTS' && (
-        <ReportsScreen onBack={handleBackToList} />
-      )}
-
-      {currentScreen === 'TRANSACTIONS' && (
-        <FinancialTransactionsScreen onBack={handleBackToList} />
-      )}
-
-      {currentScreen === 'INVENTORY' && (
-        <InventoryScreen onBack={handleBackToList} />
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -161,5 +174,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f6fa',
+  },
+  contentContainer: {
+    flex: 1,
   },
 });
