@@ -5,10 +5,12 @@ import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { ReportsScreen } from './src/screens/ReportsScreen';
+import ReportsScreen from './src/screens/ReportsScreen';
+import FinancialTransactionsScreen from './src/screens/FinancialTransactionsScreen';
+import InventoryScreen from './src/screens/InventoryScreen';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
-type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS' | 'REPORTS';
+type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS' | 'REPORTS' | 'TRANSACTIONS' | 'INVENTORY';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LIST');
@@ -60,6 +62,14 @@ export default function App() {
     setCurrentScreen('REPORTS');
   };
 
+  const handleTransactionsPress = () => {
+    setCurrentScreen('TRANSACTIONS');
+  };
+
+  const handleInventoryPress = () => {
+    setCurrentScreen('INVENTORY');
+  };
+
   const handleCreateOrder = async (orderData: any) => {
     try {
       // First, create or find the client
@@ -102,6 +112,8 @@ export default function App() {
           onNewOrder={handleNewOrderPress}
           onDashboard={handleDashboardPress}
           onReports={handleReportsPress}
+          onTransactions={handleTransactionsPress}
+          onInventory={handleInventoryPress}
           onSettings={handleSettingsPress}
         />
       )}
@@ -132,6 +144,14 @@ export default function App() {
 
       {currentScreen === 'REPORTS' && (
         <ReportsScreen onBack={handleBackToList} />
+      )}
+
+      {currentScreen === 'TRANSACTIONS' && (
+        <FinancialTransactionsScreen onBack={handleBackToList} />
+      )}
+
+      {currentScreen === 'INVENTORY' && (
+        <InventoryScreen onBack={handleBackToList} />
       )}
     </View>
   );
