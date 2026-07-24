@@ -133,19 +133,34 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     );
   `);
 
-  // Create Workshop Config table
+  // FASE 3: Create License & Activation table
   await database.execAsync(`
-    CREATE TABLE IF NOT EXISTS workshop_config (
+    CREATE TABLE IF NOT EXISTS app_license (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      workshop_name TEXT NOT NULL,
-      workshop_logo TEXT,
-      address TEXT,
-      phone TEXT,
+      license_key TEXT UNIQUE NOT NULL,
+      is_active INTEGER DEFAULT 0,
+      license_type TEXT NOT NULL DEFAULT 'TRIAL',
+      activated_at DATETIME,
+      expires_at DATETIME,
+      max_devices INTEGER DEFAULT 1,
+      features TEXT, -- JSON array of enabled features
+      workshop_name TEXT,
       email TEXT,
-      warranty_terms TEXT,
-      warranty_days INTEGER DEFAULT 30,
-      tax_id TEXT,
-      currency_symbol TEXT DEFAULT '$'
+      device_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // FASE 3: Create App Features configuration table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS app_features (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      feature_id TEXT UNIQUE NOT NULL,
+      feature_name TEXT NOT NULL,
+      description TEXT,
+      is_enabled INTEGER DEFAULT 1,
+      requires_license TEXT, -- 'TRIAL', 'BASIC', 'PRO', 'ENTERPRISE' or NULL
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -158,6 +173,8 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     CREATE INDEX IF NOT EXISTS idx_incomes_date ON incomes(date);
     CREATE INDEX IF NOT EXISTS idx_warranty_claims_status ON warranty_claims(status);
     CREATE INDEX IF NOT EXISTS idx_orders_warranty ON service_orders(warranty_until);
+    CREATE INDEX IF NOT EXISTS idx_license_active ON app_license(is_active);
+    CREATE INDEX IF NOT EXISTS idx_features_enabled ON app_features(is_enabled);
   `);
 
   // FASE 2: Insert default workshop config if not exists
@@ -172,7 +189,48 @@ const initializeDatabase = async (database: SQLite.SQLiteDatabase) => {
     `);
   }
 
-  console.log('Database initialized successfully with Phase 2 tables');
+  // FASE 3: Insert default trial license if not exists (30 days trial)
+  const licenseCount = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM app_license'
+  );
+  
+  if (!licenseCount || licenseCount.count === 0) {
+    const trialExpires = new Date();
+    trialExpires.setDate(trialExpires.getDate() + 30); // 30 days trial
+    
+    await database.runAsync(`
+      INSERT INTO app_license (license_key, is_active, license_type, activated_at, expires_at, max_devices, features, workshop_name)
+      VALUES (?, 1, 'TRIAL', CURRENT_TIMESTAMP, ?, 1, '["orders","clients","inventory","pdf_export","dashboard"]', 'Taller Demo')
+    `, ['TRIAL-DEMO-KEY', trialExpires.toISOString().split('T')[0]]);
+  }
+
+  // FASE 3: Insert default app features configuration
+  const featuresCount = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM app_features WHERE feature_id = "orders"'
+  );
+  
+  if (!featuresCount || featuresCount.count === 0) {
+    const defaultFeatures = [
+      { id: 'orders', name: 'Gestión de Órdenes', description: 'Crear y gestionar órdenes de servicio', requiresLicense: null },
+      { id: 'clients', name: 'Directorio de Clientes', description: 'CRUD de clientes e historial', requiresLicense: null },
+      { id: 'inventory', name: 'Inventario', description: 'Control de repuestos y stock', requiresLicense: 'BASIC' },
+      { id: 'pdf_export', name: 'Exportar PDF', description: 'Generar comprobantes y garantías', requiresLicense: null },
+      { id: 'dashboard', name: 'Dashboard Financiero', description: 'Métricas y reportes financieros', requiresLicense: 'BASIC' },
+      { id: 'warranty_mgmt', name: 'Gestión de Garantías', description: 'Reclamos y seguimiento de garantías', requiresLicense: 'PRO' },
+      { id: 'multi_device', name: 'Multi-dispositivo', description: 'Sincronización entre dispositivos', requiresLicense: 'ENTERPRISE' },
+      { id: 'custom_branding', name: 'Marca Personalizada', description: 'Logo y términos personalizados', requiresLicense: 'PRO' },
+      { id: 'advanced_reports', name: 'Reportes Avanzados', description: 'Exportación avanzada de reportes', requiresLicense: 'ENTERPRISE' },
+    ];
+    
+    for (const feature of defaultFeatures) {
+      await database.runAsync(`
+        INSERT INTO app_features (feature_id, feature_name, description, requires_license)
+        VALUES (?, ?, ?, ?)
+      `, [feature.id, feature.name, feature.description, feature.requiresLicense]);
+    }
+  }
+
+  console.log('Database initialized successfully with Phase 3 tables');
 };
 
 // Helper function to generate order number (MPL-1001 format)

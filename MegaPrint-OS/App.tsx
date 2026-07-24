@@ -4,9 +4,10 @@ import { OrdersList } from './src/components/OrdersList';
 import { NewOrderForm } from './src/components/NewOrderForm';
 import { OrderDetailScreen } from './src/screens/OrderDetailScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { serviceOrderRepository, clientRepository } from './src/database/repositories';
 
-type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD';
+type Screen = 'LIST' | 'NEW_ORDER' | 'DETAIL' | 'DASHBOARD' | 'SETTINGS';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LIST');
@@ -50,6 +51,10 @@ export default function App() {
     setCurrentScreen('DASHBOARD');
   };
 
+  const handleSettingsPress = () => {
+    setCurrentScreen('SETTINGS');
+  };
+
   const handleCreateOrder = async (orderData: any) => {
     try {
       // First, create or find the client
@@ -91,6 +96,7 @@ export default function App() {
           onOrderPress={handleOrderPress}
           onNewOrder={handleNewOrderPress}
           onDashboard={handleDashboardPress}
+          onSettings={handleSettingsPress}
         />
       )}
       
@@ -112,6 +118,10 @@ export default function App() {
         <DashboardScreen
           onBack={handleBackToList}
         />
+      )}
+
+      {currentScreen === 'SETTINGS' && (
+        <SettingsScreen />
       )}
     </View>
   );

@@ -14,7 +14,12 @@ import type {
   DailyFinancialSummary,
   PaymentMethod,
   ExpenseCategory,
-  IncomeCategory
+  IncomeCategory,
+  LicenseInfo,
+  LicenseType,
+  ActivationRequest,
+  ActivationResponse,
+  AppFeature
 } from '../types';
 
 // ==================== CLIENT REPOSITORY ====================
@@ -791,5 +796,217 @@ export const workshopConfigRepository = {
       );
       return result.lastInsertRowId;
     }
+  },
+};
+
+// ==================== LICENSE & ACTIVATION REPOSITORY (FASE 3) ====================
+
+export const licenseRepository = {
+  async getCurrentLicense(): Promise<LicenseInfo | null> {
+    const db = await getDatabase();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM app_license WHERE is_active = 1 LIMIT 1'
+    );
+    
+    if (!result) return null;
+    
+    return {
+      licenseKey: result.license_key,
+      isActive: result.is_active === 1,
+      licenseType: result.license_type as LicenseType,
+      activatedAt: result.activated_at,
+      expiresAt: result.expires_at,
+      maxDevices: result.max_devices,
+      features: result.features ? JSON.parse(result.features) : [],
+      workshopName: result.workshop_name,
+      email: result.email,
+    };
+  },
+
+  async activateLicense(request: ActivationRequest): Promise<ActivationResponse> {
+    const db = await getDatabase();
+    
+    // Simulación de validación offline (en producción esto validaría con un servidor)
+    // Formato de clave: XXXX-XXXX-XXXX-XXXX o TRIAL-DEMO-KEY
+    const isValidFormat = /^([A-Z0-9]{4}-){2,3}[A-Z0-9]{4}$/.test(request.licenseKey) || 
+                          request.licenseKey === 'TRIAL-DEMO-KEY';
+    
+    if (!isValidFormat) {
+      return { success: false, message: 'Clave de licencia inválida', error: 'FORMAT_ERROR' };
+    }
+
+    try {
+      // Determinar tipo de licencia basado en la clave
+      let licenseType: LicenseType = 'BASIC';
+      let features = ['orders', 'clients', 'inventory', 'pdf_export'];
+      let maxDevices = 1;
+      let expiresAt: string | null = null;
+
+      if (request.licenseKey.includes('TRIAL')) {
+        licenseType = 'TRIAL';
+        features = ['orders', 'clients', 'inventory', 'pdf_export', 'dashboard'];
+        const trialDate = new Date();
+        trialDate.setDate(trialDate.getDate() + 30);
+        expiresAt = trialDate.toISOString().split('T')[0];
+      } else if (request.licenseKey.includes('PRO')) {
+        licenseType = 'PRO';
+        features = ['orders', 'clients', 'inventory', 'pdf_export', 'dashboard', 'warranty_mgmt', 'custom_branding'];
+        maxDevices = 3;
+        const proDate = new Date();
+        proDate.setFullYear(proDate.getFullYear() + 1);
+        expiresAt = proDate.toISOString().split('T')[0];
+      } else if (request.licenseKey.includes('ENT')) {
+        licenseType = 'ENTERPRISE';
+        features = ['orders', 'clients', 'inventory', 'pdf_export', 'dashboard', 'warranty_mgmt', 'custom_branding', 'multi_device', 'advanced_reports'];
+        maxDevices = 10;
+        const entDate = new Date();
+        entDate.setFullYear(entDate.getFullYear() + 1);
+        expiresAt = entDate.toISOString().split('T')[0];
+      }
+
+      // Verificar si ya existe una licencia activa
+      const existing = await this.getCurrentLicense();
+      
+      if (existing && existing.isActive) {
+        // Desactivar licencia anterior
+        await db.runAsync('UPDATE app_license SET is_active = 0 WHERE is_active = 1');
+      }
+
+      // Insertar nueva licencia
+      await db.runAsync(
+        `INSERT INTO app_license 
+         (license_key, is_active, license_type, activated_at, expires_at, max_devices, features, workshop_name, email, device_id)
+         VALUES (?, 1, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?)`,
+        [
+          request.licenseKey,
+          licenseType,
+          expiresAt,
+          maxDevices,
+          JSON.stringify(features),
+          request.workshopName,
+          request.email,
+          request.deviceId
+        ]
+      );
+
+      return {
+        success: true,
+        message: `Licencia ${licenseType} activada exitosamente`,
+        licenseInfo: {
+          licenseKey: request.licenseKey,
+          isActive: true,
+          licenseType,
+          activatedAt: new Date().toISOString(),
+          expiresAt: expiresAt || undefined,
+          maxDevices,
+          features,
+          workshopName: request.workshopName,
+          email: request.email,
+        }
+      };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        message: 'Error al activar la licencia', 
+        error: error.message 
+      };
+    }
+  },
+
+  async deactivateLicense(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('UPDATE app_license SET is_active = 0 WHERE is_active = 1');
+  },
+
+  async isFeatureEnabled(featureId: string): Promise<boolean> {
+    const db = await getDatabase();
+    
+    // Verificar si la feature existe y está habilitada
+    const feature = await db.getFirstAsync<{ is_enabled: number; requires_license: string | null }>(
+      'SELECT is_enabled, requires_license FROM app_features WHERE feature_id = ?',
+      [featureId]
+    );
+    
+    if (!feature) return false;
+    if (feature.is_enabled === 0) return false;
+    
+    // Si no requiere licencia, está disponible
+    if (!feature.requires_license) return true;
+    
+    // Verificar si el usuario tiene la licencia requerida
+    const license = await this.getCurrentLicense();
+    if (!license || !license.isActive) return false;
+    
+    // Verificar jerarquía de licencias
+    const licenseHierarchy: Record<LicenseType, number> = {
+      'TRIAL': 1,
+      'BASIC': 2,
+      'PRO': 3,
+      'ENTERPRISE': 4
+    };
+    
+    const requiredLevel = licenseHierarchy[feature.requires_license as LicenseType];
+    const userLevel = licenseHierarchy[license.licenseType];
+    
+    return userLevel >= requiredLevel;
+  },
+
+  async getAllFeatures(): Promise<AppFeature[]> {
+    const db = await getDatabase();
+    const license = await this.getCurrentLicense();
+    
+    const results = await db.getAllAsync<any>(
+      'SELECT * FROM app_features ORDER BY id'
+    );
+    
+    return results.map((r: any) => ({
+      id: r.feature_id,
+      name: r.feature_name,
+      description: r.description,
+      enabled: r.is_enabled === 1 && (!r.requires_license || license?.isActive),
+      requiresLicense: r.requires_license as LicenseType | null,
+    }));
+  },
+
+  async updateFeature(featureId: string, isEnabled: boolean): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      'UPDATE app_features SET is_enabled = ? WHERE feature_id = ?',
+      [isEnabled ? 1 : 0, featureId]
+    );
+  },
+
+  async checkLicenseExpiration(): Promise<{ isExpired: boolean; daysRemaining: number }> {
+    const license = await this.getCurrentLicense();
+    
+    if (!license || !license.expiresAt) {
+      return { isExpired: false, daysRemaining: 9999 };
+    }
+    
+    const now = new Date();
+    const expires = new Date(license.expiresAt);
+    const diffTime = expires.getTime() - now.getTime();
+    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return {
+      isExpired: daysRemaining < 0,
+      daysRemaining: Math.max(0, daysRemaining)
+    };
+  },
+
+  async extendLicense(days: number): Promise<void> {
+    const db = await getDatabase();
+    const license = await this.getCurrentLicense();
+    
+    if (!license) return;
+    
+    const currentExpiry = license.expiresAt ? new Date(license.expiresAt) : new Date();
+    const newExpiry = new Date(currentExpiry);
+    newExpiry.setDate(newExpiry.getDate() + days);
+    
+    await db.runAsync(
+      'UPDATE app_license SET expires_at = ? WHERE is_active = 1',
+      [newExpiry.toISOString().split('T')[0]]
+    );
   },
 };
